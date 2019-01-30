@@ -2,6 +2,7 @@ import json # we need to use the JSON package to load the data, since the data i
 import numpy as np
 import operator
 import matplotlib.pyplot as plt
+import time
 
 with open("proj1_data.json") as fp:
     data = json.load(fp)
@@ -36,7 +37,7 @@ def preprocess_text(string):
     
 
 # returns a list of the 160 most occuring 
-def most_occuring_words(data):
+def most_occuring_words(data, k):
     word_list = {}
     for instance in data:
         text_list = instance["text"].lower().split() # turn strings to lower case
@@ -50,12 +51,12 @@ def most_occuring_words(data):
     sorted_words = sorted(word_list.items(), key = lambda kv : kv[1])
 
     # take the 160 most occuring words
-    sorted_words = sorted_words[len(sorted_words): len(sorted_words) - 161:-1]
+    sorted_words = sorted_words[len(sorted_words): len(sorted_words) - k - 1:-1]
     return sorted_words
 
 
 
-sorted_words = most_occuring_words(data)
+sorted_words = most_occuring_words(data, 60)
 
 
 
@@ -63,8 +64,8 @@ sorted_words = most_occuring_words(data)
 def count_words(comment):
     # comment = comment.split()
     # feature = np.zeros(160)
-    feature = [0.0] * 160;
-    for i in range(160):
+    feature = [0.0] * len(sorted_words);
+    for i in range(len(sorted_words)):
         for word in comment:
             if sorted_words[i][0] == word:
                 feature[i] = feature[i] + 1
@@ -123,10 +124,12 @@ def preprocess(data):
 # perform linear regression on X
 # X is input, Y is target
 def linear_regression(X, Y):
+    start_regression = time.time()
     Xt = X.T
     Xtx = Xt.dot(X)
     inverse_Xtx = np.linalg.inv(Xtx)
     W = np.dot(np.dot(inverse_Xtx, Xt), Y)
+    
     return W
 
 
@@ -139,10 +142,15 @@ def predict(X, W, Y):
     return predicted_Y, mse
 
 
-#==================================PROGRAM=========================
+#==================================PROGRAM===========================
 
 X = preprocess(training_set)
+
+start_regression = time.time()
 W = linear_regression(X,Y_train)
+end_regression = time.time()
+
+time_regression = end_regression - start_regression
 
 mse_training = predict(X, W, Y_train)[1]
 
@@ -152,41 +160,65 @@ mse_validation = predict(X_val, W, Y_val)[1]
 X_test = preprocess(test_set)
 mse_testing = predict(X_test, W, Y_test)[1]
 
+
 print("Training Error: ", mse_training)
 print("Validation Error: ", mse_validation)
 print("Test Error: ", mse_testing)
 
 
+
+mse_descent_train = []
+mse_descent_val = []
 def gradient_descent(X,X_val, Y, Y_val, W, betta = 0.0, etta = 0.00001, EPSILON = 0.0000005):
     Xt = X.T
     Xtx = Xt.dot(X)
     Xty = Xt.dot(Y)
     k = 0
-    mse_descent_train = []
-    mse_descent_val = []
+    f.write("STARTING LEARNING RATE: {} --- NUMBER OF FEATURES IS {} \n".format(etta, Xt.shape[0]))
     while True:
         W_prev = W
         lr_rate = etta / (1 + betta)
         W = W_prev - 2 * lr_rate * (Xtx.dot(W) - Xty)
         betta += 1
+
+        # training error
         mse = predict(X, W, Y)[1]
         mse_descent_train.append(mse)
 
+        # validation error
         mse_val = predict(X_val, W, Y_val)[1]
         mse_descent_val.append(mse_val)
 
-        print("iteration ", k, ", mse = ", mse)
+        log = "iteration {} :  training error = {} | validation error = {} \n".format(k, mse, mse_val)
+        print(log)
+        f.write(log)
         k = k + 1
         condition =  pow(np.linalg.norm(W - W_prev, 2), 2)
-        print(condition)
+        
         if (condition < EPSILON) or (k > 1000):
-            plt.title("MSE loss per iteration")
-            plt.plot(mse_descent_train, 'b')
-            plt.plot(mse_descent_val, 'r')
-            plt.ylabel('MSE')
-            plt.xlabel('iteration')
-            plt.legend(['training error', 'validation error'])
-            plt.show()
             break
 
-gradient_descent(X, X_val, Y_train, Y_val, np.zeros(164))
+f = open("report.txt", "w")
+f.write("CLOSED FORM SOLUTION: \n")
+f.write("Training Error: {} \n".format(mse_training))
+f.write("Validation Error: {} \n".format(mse_validation))
+f.write("Test Error: {} \n".format(mse_testing))
+
+f.write("GRADIENT DESCENT: \n")
+
+start_descent = time.time()
+gradient_descent(X, X_val, Y_train, Y_val, np.zeros(X.shape[1]))
+end_descent = time.time()
+
+plt.title("MSE loss per iteration")
+plt.plot(mse_descent_train, 'b')
+plt.plot(mse_descent_val, 'r')
+plt.ylabel('MSE')
+plt.xlabel('iteration')
+plt.legend(['training error', 'validation error'])
+plt.show()
+
+time_descent = end_descent - start_descent
+
+f.write("closed from runtime: {} seconds | gradient descent runtime: {} seconds".format(time_regression,time_descent))
+f.close()
