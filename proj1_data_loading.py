@@ -56,7 +56,7 @@ def most_occuring_words(data, k):
 
 
 
-sorted_words = most_occuring_words(data, 60)
+sorted_words = most_occuring_words(data, 160)
 
 
 
@@ -89,6 +89,16 @@ def extract_features(dictionary):
     return list
 
 
+# method that returns the number of punctuation in a string
+def count_punc(string):
+    punc = ['!','?', '.', ',']
+    count = 0
+    for i in range(len(string)):
+        if string[i] in punc:
+            count += 1
+    return count
+
+
 
 # create target/output vector for the data set given as dictionary
 def get_target(data):
@@ -109,11 +119,22 @@ def preprocess(data):
     for i in range(len(data)):
         # get dictionary
         instance = data[i]
+
+        
+        
+
         # get recurrence feature
-        recurrence_feature = count_words(preprocess_text(instance['text']))
+        # recurrence_feature = count_words(preprocess_text(instance['text']))
         # get other features
         features = extract_features(instance)
-        features.extend(recurrence_feature)
+        # features.extend(recurrence_feature)
+
+        # add comment length as a feature
+        # features.append(float(len(instance['text'])))
+
+        # add number of punctuation marks as comment
+        features.append(float(count_punc(instance['text'])))
+
         features.append(1.0)
         matrix.append(features)
         
@@ -174,7 +195,7 @@ def gradient_descent(X,X_val, Y, Y_val, W, betta = 0.0, etta = 0.00001, EPSILON 
     Xtx = Xt.dot(X)
     Xty = Xt.dot(Y)
     k = 0
-    f.write("STARTING LEARNING RATE: {} --- NUMBER OF FEATURES IS {} \n".format(etta, Xt.shape[0]))
+    f.write("STARTING LEARNING RATE: {} --- NUMBER OF FEATURES IS {} --- STARTING WEIGHT IS {} \n".format(etta, Xt.shape[0], W[0]))
     while True:
         W_prev = W
         lr_rate = etta / (1 + betta)
